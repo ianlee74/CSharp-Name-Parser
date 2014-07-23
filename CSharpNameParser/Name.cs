@@ -6,7 +6,7 @@ namespace CSharpNameParser
     public class Name
     {
         [DataMember]
-        public string Prefix { get; set; }
+        public string Salutation { get; set; }
 
         [DataMember]
         public string FirstName { get; set; }
