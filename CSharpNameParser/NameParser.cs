@@ -184,6 +184,8 @@ namespace CSharpNameParser
 	    // uppercase words split by the seperator (ex. dashes or periods)
 	    public string SafeUcFirst(char seperator, string word) 
         {
+            if (String.IsNullOrWhiteSpace(word)) return word;
+
 		    var words = word.Split(seperator);
 	        var newWord = new StringBuilder();
 	        foreach (var thisWord in words)
