@@ -29,15 +29,19 @@ namespace CSharpNameParser
 
 		    // split into words
 		    // completely ignore any words in parentheses
-            var nameParts = fullName.Split(' ').Where(w => !w.StartsWith("(")).ToList();
+            List<string> nameParts = fullName.Split(' ').Where(w => !w.StartsWith("(")).ToList();
             var numWords = nameParts.Count();
 
 		    // is the first word a title? (Mr. Mrs, etc)
 		    var salutation = IsSalutation(nameParts[0]);
+            // is last word a suffix? (Jr, III)
 		    var suffix = IsSuffix(nameParts[numWords - 1]);
 		    // set the range for the middle part of the name (trim prefixes & suffixes)
-		    var start = !String.IsNullOrEmpty(salutation) ? 1 : 0;
-		    var end = !String.IsNullOrEmpty(suffix) ? numWords - 1 : numWords;
+		    int start = !String.IsNullOrEmpty(salutation) ? 1 : 0;
+		    int end = !String.IsNullOrEmpty(suffix) ? numWords - 1 : numWords;
+
+            // if last name is first
+            nameParts = ReOrderNamePartsIfLastNameIsFirst (nameParts, start, end-1);
 
 		    var word = nameParts[start];
 		    // if we start off with an initial, we'll call it the first name
@@ -56,13 +60,19 @@ namespace CSharpNameParser
 		    } else {
 			    firstName += " " + FixCase(word);
 		    }
-
 		    // concat the first name
 		    for (i=start + 1; i<(end - 1); i++) {
 			    word = nameParts[i];
+
+                // move on to parsing the last name if we find an indicator of a conjuctive last name (y)
+                if (IsConjunctiveLastName (nameParts[i+1]))
+                {
+                    break;
+                }
 			    // move on to parsing the last name if we find an indicator of a compound last name (Von, Van, etc)
 			    // we do not check earlier to allow for rare cases where an indicator is actually the first name (like "Von Fabella")
-			    if (IsCompoundLastName(word)) break;
+			    if (IsCompoundLastName(word)) 
+                    break;
 
 			    if (IsInitial(word))
 			    {
@@ -70,7 +80,12 @@ namespace CSharpNameParser
 			    }
                 else
                 {
-				    firstName += " " + FixCase(word);
+                    // concat middle name to initials if first name exists
+                    if (firstName == "") {
+                        firstName = FixCase (word);
+                    } else {
+                        initials += " " + FixCase (word);
+                    }
 			    }
 		    }
 		
@@ -83,16 +98,56 @@ namespace CSharpNameParser
 				    lastName += " " + this.FixCase(nameParts[j]);
 			    }
 		    }
-
+            if ((firstName.Length > 1) && (firstName.Substring (firstName.Length-1, 1) == ","))
+            {
+                string tmpStr = firstName;
+                firstName = lastName;
+                lastName = tmpStr;
+            }
             // return the various parts in an array
 		    return new Name()
-                {
-			        Salutation = salutation ?? "",
-			        FirstName = firstName.Trim(),
-			        MiddleInitials = initials.Trim(),
-			        LastName = lastName.Trim(),
-			        Suffix = suffix ?? ""
-		        };
+            {
+			    Salutation = salutation ?? "",
+                FirstName = RemoveCommas(firstName.Trim()),
+                MiddleInitials = RemoveCommas(initials.Trim()),
+                LastName = RemoveCommas(lastName.Trim()),
+			    Suffix = suffix ?? ""
+		    };
+        }
+
+        protected List<string> ReOrderNamePartsIfLastNameIsFirst (List<string> nameParts, int start, int end)
+        {
+            int index = 0;
+            for (int x = start; x < end; x++){
+                // if name part ends in a comma, it is probably the last name
+                string part = nameParts[x];
+                if ((part.Length > 1) && (part.Substring (part.Length - 1, 1) == ",")) {
+                    index = x;
+                    break;
+                }
+            }
+            if (index == 0) {
+                return nameParts;
+            }
+            string [] newNameParts = new string [nameParts.Count];
+
+            // copy salutations over to new Name Parts
+            for (int x = 0; x < start; x++) {
+                newNameParts [x] = nameParts [x];
+            }
+            // copy suffixes over to new Name Parts
+            for (int x = end+1; x < nameParts.Count; x++) {
+                newNameParts [x] = nameParts [x];
+            }
+            // copy words before index to end
+            for (int i = start; i <= index; i++) {
+                newNameParts [end - index +i] = nameParts [i];
+            }
+            // copy words after index to beginning
+            for (int i = index+1; i <= end; i++) {
+                newNameParts [i-index-1+start] = nameParts [i];
+            }
+            return new List<string> (newNameParts);
         }
 
         protected string RemoveIgnoredChars(string word) 
@@ -100,6 +155,12 @@ namespace CSharpNameParser
 		    //ignore periods
 		    return word.Replace(".","");
 	    }
+
+        protected string RemoveCommas(string word) 
+        {
+            //ignore periods
+            return word.Replace(",", String.Empty);
+        }
 
         // detect and format standard salutations 
 	    // I'm only considering english honorifics for now & not words like 
@@ -149,9 +210,18 @@ namespace CSharpNameParser
         {
 		    word = word.ToLower();
 		    // these are some common prefixes that identify a compound last names - what am I missing?
-	        var words = new[]{ "vere", "von", "van", "de", "del", "della", "di", "da", "pietro", "vanden", "du", "st.", "st", "la", "lo", "ter" };
+	        var words = new[]{ "vere", "von", "van", "de", "del", "della", "di", "da", "pietro", "vanden", "du", "st.", "st", "la", "lo", "ter"};
 	        return !String.IsNullOrEmpty(words.FirstOrDefault(w => w == word));
         }
+
+        // detect conjustive last names like ""
+        public bool IsConjunctiveLastName(string word) 
+        {
+            word = word.ToLower();
+            var words = new[]{ "y"};
+            return !String.IsNullOrEmpty(words.FirstOrDefault(w => w == word));
+        }
+
 
         // single letter, possibly followed by a period
 	    public bool IsInitial(string word) 
@@ -197,7 +267,15 @@ namespace CSharpNameParser
 	            }
 	            else
 	            {
-	                newWord.Append(thisWord.Substring(0, 1).ToUpper() + thisWord.Substring(1).ToLower());
+                    if (thisWord.Length > 1) {
+                        newWord.Append (thisWord.Substring (0, 1).ToUpper () + thisWord.Substring (1).ToLower ());
+                    } else {
+                        if (thisWord != "y") {
+                            newWord.Append (thisWord.ToUpper ());
+                        } else {
+                            newWord.Append (thisWord);
+                        }
+                    }
 	            }	            
 	        }
 	        return newWord.ToString();
