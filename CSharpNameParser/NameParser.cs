@@ -28,10 +28,8 @@ namespace CSharpNameParser
             var i = 0;
 
             // split into words
-            // completely ignore any words in parentheses 
-            string regex = "(\\(.*\\))";
-            string strippedFullName = Regex.Replace(fullName, regex, "").Trim();
-            List<string> nameParts = strippedFullName.Split (' ').ToList ();
+            // completely ignore any words in parentheses
+            List<string> nameParts = fullName.Split (' ').Where (w => !w.StartsWith ("(")).ToList ();
             var numWords = nameParts.Count ();
 
             // is the first word a title? (Mr. Mrs, etc)
