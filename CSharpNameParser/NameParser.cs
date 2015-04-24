@@ -29,7 +29,7 @@ namespace CSharpNameParser
 
             // split into words
             // completely ignore any words in parentheses 
-            string regex = "(\\(.*\\))";
+            string regex = "(\\(.*?\\))";
             string strippedFullName = Regex.Replace(fullName, regex, "").Trim();
             List<string> nameParts = strippedFullName.Split (' ').ToList ();
             var numWords = nameParts.Count ();
