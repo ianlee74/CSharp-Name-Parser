@@ -51,7 +51,7 @@ namespace CSharpNameParser
                 // if so, do a look-ahead to see if they go by their middle name 
                 // for ex: "R. Jason Smith" => "Jason Smith" & "R." is stored as an initial
                 // but "R. J. Smith" => "R. Smith" and "J." is stored as an initial
-                if (IsInitial (nameParts [start + 1])) {
+                if (((start + 1) < nameParts.Count) && IsInitial (nameParts [start + 1])) {
                     firstName += " " + word.ToUpper ();
                 } else {
                     initials += " " + word.ToUpper ();
